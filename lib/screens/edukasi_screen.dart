@@ -41,7 +41,7 @@ class EdukasiScreen extends StatelessWidget {
         ]),
         SizedBox(height:12),
         FilterChipRow(
-            options:['Semua','Pengenalan TBC','Pengobatan','Pencegahan','Nutrisi','Kepatuhan'],
+            options:const ['Semua','Pengenalan TBC','Pengobatan','Pencegahan','Nutrisi','Kepatuhan'],
             selected:state.filterEdukasi,
             onSelect:(v){ state.filterEdukasi=v; state.notifyListeners(); }),
         SizedBox(height:16),
@@ -107,9 +107,10 @@ class EdukasiScreen extends StatelessWidget {
     );
   }
 
-  void _showBacaDialog(BuildContext context, KontenEdukasi edu) {
+  void _showBacaDialog(BuildContext context, KontenEdukasi edu) async {
     final state = context.read<AppState>();
-    state.incrementViews(edu);
+    // PENAMBAHAN AWAIT SAAT INCREMENT VIEWS
+    await state.incrementViews(edu);
     final clr = _katColors[edu.kategori] ?? AppColors.sage;
     showDialog(context:context, builder:(_)=>Dialog(
       backgroundColor:AppColors.card,
@@ -178,7 +179,7 @@ class EdukasiScreen extends StatelessWidget {
         content:Column(mainAxisSize:MainAxisSize.min, children:[
           LabeledField(label:'Judul *', controller:cJudul),
           LabeledDropdown(label:'Kategori', value:vKat,
-              items:['Pengenalan TBC','Pengobatan','Pencegahan','Nutrisi','Kepatuhan'],
+              items:const ['Pengenalan TBC','Pengobatan','Pencegahan','Nutrisi','Kepatuhan'],
               onChanged:(v)=>setSt(()=>vKat=v!)),
           LabeledField(label:'Durasi Baca', controller:cDur),
           LabeledField(label:'Isi Materi', controller:cIsi, maxLines:4),
@@ -186,16 +187,20 @@ class EdukasiScreen extends StatelessWidget {
         actions:[
           CCButton(label:'Batal',outline:true,color:AppColors.sage,
               textColor:AppColors.sage,onPressed:()=>Navigator.pop(ctx)),
-          CCButton(label:'Simpan',onPressed:(){
+          CCButton(label:'Simpan',onPressed:() async {
             if(cJudul.text.trim().isEmpty){
               ScaffoldMessenger.of(ctx).showSnackBar(
                   SnackBar(content:Text('Judul tidak boleh kosong')));
               return;
             }
-            state.addEdukasi(KontenEdukasi(
+            
+            // PENAMBAHAN ID GENERATE & AWAIT DI SINI
+            await state.addEdukasi(KontenEdukasi(
+                id: 'E-${DateTime.now().millisecondsSinceEpoch}',
                 judul:cJudul.text.trim(), kategori:vKat,
                 durasi:cDur.text.trim().isEmpty?'5 mnt':cDur.text.trim(),
                 views:0, isi:cIsi.text.trim()));
+                
             Navigator.pop(ctx);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content:Text('Konten edukasi ditambahkan'),
@@ -219,7 +224,7 @@ class EdukasiScreen extends StatelessWidget {
         content:Column(mainAxisSize:MainAxisSize.min, children:[
           LabeledField(label:'Judul *', controller:cJudul),
           LabeledDropdown(label:'Kategori', value:vKat,
-              items:['Pengenalan TBC','Pengobatan','Pencegahan','Nutrisi','Kepatuhan'],
+              items:const ['Pengenalan TBC','Pengobatan','Pencegahan','Nutrisi','Kepatuhan'],
               onChanged:(v)=>setSt(()=>vKat=v!)),
           LabeledField(label:'Durasi Baca', controller:cDur),
           LabeledField(label:'Isi Materi', controller:cIsi, maxLines:4),
@@ -227,14 +232,17 @@ class EdukasiScreen extends StatelessWidget {
         actions:[
           CCButton(label:'Batal',outline:true,color:AppColors.sage,
               textColor:AppColors.sage,onPressed:()=>Navigator.pop(ctx)),
-          CCButton(label:'Simpan',onPressed:(){
+          CCButton(label:'Simpan',onPressed:() async {
             if(cJudul.text.trim().isEmpty){
               ScaffoldMessenger.of(ctx).showSnackBar(
                   SnackBar(content:Text('Judul tidak boleh kosong')));
               return;
             }
-            state.updateEdukasi(edu, cJudul.text.trim(), vKat,
+            
+            // PENAMBAHAN AWAIT DI SINI
+            await state.updateEdukasi(edu, cJudul.text.trim(), vKat,
                 cDur.text.trim(), cIsi.text.trim());
+                
             Navigator.pop(ctx);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content:Text('Konten edukasi diperbarui'),

@@ -129,29 +129,33 @@ class JadwalScreen extends StatelessWidget {
           LabeledField(label:'Tanggal (DD/MM/YYYY) *', controller:cTgl),
           LabeledField(label:'Pukul (HH:MM) *', controller:cPukul),
           LabeledDropdown(label:'Poliklinik', value:vPoli,
-              items:['Poli TBC','Poli Paru','Poli Umum','Laboratorium','Radiologi'],
+              items:const ['Poli TBC','Poli Paru','Poli Umum','Laboratorium','Radiologi'],
               onChanged:(v)=>setSt(()=>vPoli=v!)),
           LabeledDropdown(label:'Dokter', value:vDok,
-              items:['dr. Rina Sari','dr. Budi Santoso','dr. Samuel Wenas','dr. Yolanda Karwur'],
+              items:const ['dr. Rina Sari','dr. Budi Santoso','dr. Samuel Wenas','dr. Yolanda Karwur'],
               onChanged:(v)=>setSt(()=>vDok=v!)),
           LabeledField(label:'Catatan', controller:cCat),
         ]),
         actions:[
           CCButton(label:'Batal',outline:true,color:AppColors.sage,
               textColor:AppColors.sage,onPressed:()=>Navigator.pop(ctx)),
-          CCButton(label:'Simpan',onPressed:(){
+          CCButton(label:'Simpan',onPressed:() async {
             if(cNama.text.trim().isEmpty||cId.text.trim().isEmpty||
                cTgl.text.trim().isEmpty||cPukul.text.trim().isEmpty){
               ScaffoldMessenger.of(ctx).showSnackBar(
                   SnackBar(content:Text('Field bertanda * wajib diisi')));
               return;
             }
-            state.addJadwal(JadwalKontrol(
+            
+            // PENAMBAHAN ID GENERATE & AWAIT DI SINI
+            await state.addJadwal(JadwalKontrol(
+                id: 'J-${DateTime.now().millisecondsSinceEpoch}', 
                 tgl:cTgl.text.trim(), pukul:cPukul.text.trim(),
                 nama:cNama.text.trim(), idPasien:cId.text.trim(),
                 poli:vPoli, dokter:vDok,
                 catatan:cCat.text.trim().isEmpty?'-':cCat.text.trim(),
                 status:'Terjadwal'));
+                
             Navigator.pop(ctx);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content:Text('Jadwal berhasil disimpan'),
@@ -176,15 +180,16 @@ class JadwalScreen extends StatelessWidget {
               icon:Icons.calendar_today),
           SizedBox(height:12),
           LabeledDropdown(label:'Status Kunjungan', value:vStatus,
-              items:['Terjadwal','Sudah Hadir','Tidak Hadir','Ditunda'],
+              items:const ['Terjadwal','Sudah Hadir','Tidak Hadir','Ditunda'],
               onChanged:(v)=>setSt(()=>vStatus=v!)),
           LabeledField(label:'Catatan Update', controller:cCat),
         ]),
         actions:[
           CCButton(label:'Batal',outline:true,color:AppColors.sage,
               textColor:AppColors.sage,onPressed:()=>Navigator.pop(ctx)),
-          CCButton(label:'Simpan',onPressed:(){
-            state.updateStatusJadwal(j, vStatus, cCat.text.trim().isEmpty?j.catatan:cCat.text.trim());
+          CCButton(label:'Simpan',onPressed:() async {
+            // PENAMBAHAN AWAIT DI SINI
+            await state.updateStatusJadwal(j, vStatus, cCat.text.trim().isEmpty?j.catatan:cCat.text.trim());
             Navigator.pop(ctx);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content:Text('Status jadwal diperbarui'),

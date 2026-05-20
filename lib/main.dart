@@ -15,9 +15,13 @@ import 'screens/laporan_screen.dart';
 import 'screens/edukasi_screen.dart';
 
 void main() {
+  // Pastikan Flutter binding sudah siap sebelum load database (Wajib untuk FFI Desktop)
+  WidgetsFlutterBinding.ensureInitialized();
+  
   runApp(
     ChangeNotifierProvider(
-      create: (_) => AppState(),
+      // Disini kita trigger loadSemuaData() agar narik data dari SQLite saat app jalan
+      create: (_) => AppState()..loadSemuaData(),
       child: const ClinicCareApp(),
     ),
   );
@@ -143,7 +147,7 @@ class _AppShellState extends State<AppShell> {
         ),
         if (isWide) ...[
           const SizedBox(width: 10),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
             Text('ClinicCare',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800,
                     color: AppColors.ivory, letterSpacing: 0.5)),
@@ -211,7 +215,7 @@ class _AppShellState extends State<AppShell> {
               fontWeight: FontWeight.w700))),
       if (isWide) ...[
         SizedBox(width: 8),
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Column(crossAxisAlignment: CrossAxisAlignment.start, children: const [
           Text('dr. Rina Sari',
               style: TextStyle(fontSize: 11, color: AppColors.ivory,
                   fontWeight: FontWeight.w600)),

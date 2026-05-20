@@ -80,6 +80,14 @@ class LabScreen extends StatelessWidget {
 
   void _showInputDialog(BuildContext context) {
     final state  = context.read<AppState>();
+    
+    // Safety check kalau data pasien masih kosong
+    if (state.pasien.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content:Text('Data pasien kosong! Tambahkan pasien terlebih dahulu.')));
+      return;
+    }
+    
     final namalist = state.pasien.map((p)=>p.nama).toList();
     String vNama  = namalist.first;
     String vJenis = 'BTA Sputum';
@@ -97,29 +105,33 @@ class LabScreen extends StatelessWidget {
           LabeledDropdown(label:'Nama Pasien *', value:vNama,
               items:namalist, onChanged:(v)=>setSt(()=>vNama=v!)),
           LabeledDropdown(label:'Jenis Pemeriksaan *', value:vJenis,
-              items:['BTA Sputum','TCM GeneXpert','Foto Toraks','CD4 Count',
+              items:const ['BTA Sputum','TCM GeneXpert','Foto Toraks','CD4 Count',
                      'Darah Rutin','Fungsi Hati (SGOT/SGPT)','Kultur Sputum'],
               onChanged:(v)=>setSt(()=>vJenis=v!)),
           LabeledField(label:'Hasil Pemeriksaan *', controller:cHasil),
           LabeledDropdown(label:'Status Hasil', value:vStatus,
-              items:['Normal','Abnormal','Positif','Kritis','MDR','Rendah'],
+              items:const ['Normal','Abnormal','Positif','Kritis','MDR','Rendah'],
               onChanged:(v)=>setSt(()=>vStatus=v!)),
           LabeledField(label:'Tanggal (DD/MM/YYYY)', controller:cTgl),
         ]),
         actions:[
           CCButton(label:'Batal',outline:true,color:AppColors.sage,
               textColor:AppColors.sage,onPressed:()=>Navigator.pop(ctx)),
-          CCButton(label:'Simpan',onPressed:(){
+          CCButton(label:'Simpan',onPressed:() async {
             if(cHasil.text.trim().isEmpty){
               ScaffoldMessenger.of(ctx).showSnackBar(
                   SnackBar(content:Text('Hasil pemeriksaan wajib diisi')));
               return;
             }
             final px=state.pasien.firstWhere((p)=>p.nama==vNama);
-            state.addLab(HasilLab(
+            
+            // PENAMBAHAN ID GENERATE & AWAIT DI SINI
+            await state.addLab(HasilLab(
+                id: 'L-${DateTime.now().millisecondsSinceEpoch}',
                 idPasien:px.id, nama:vNama, jenis:vJenis,
                 hasil:cHasil.text.trim(),
                 tgl:cTgl.text.trim(), status:vStatus));
+                
             Navigator.pop(ctx);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content:Text('Hasil lab berhasil disimpan'),

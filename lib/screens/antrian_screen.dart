@@ -236,10 +236,10 @@ class AntrianScreen extends StatelessWidget {
     ]);
   }
 
-  void _panggilBerikutnya(BuildContext context) {
+  void _panggilBerikutnya(BuildContext context) async {
     final state = context.read<AppState>();
     final before = state.nowServed;
-    state.panggilBerikutnya();
+    await state.panggilBerikutnya();
     final after = state.nowServed;
     if(after != null && after != before){
       showDialog(context:context, builder:(_)=>AlertDialog(
@@ -272,8 +272,8 @@ class AntrianScreen extends StatelessWidget {
         TextButton(onPressed:()=>Navigator.pop(context),child:Text('Batal')),
         ElevatedButton(
           style:ElevatedButton.styleFrom(backgroundColor:AppColors.blood),
-          onPressed:(){
-            state.resetAntrian(state.poliAktif);
+          onPressed:() async {
+            await state.resetAntrian(state.poliAktif);
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content:Text('Antrian direset'),backgroundColor:AppColors.blood));
@@ -304,7 +304,7 @@ class AntrianScreen extends StatelessWidget {
               items:poliList.map((p)=>p.kode).toList(),
               onChanged:(v)=>setSt(()=>vKode=v!)),
           LabeledDropdown(label:'Prioritas', value:vPrio,
-              items:['Normal','Lansia','Tinggi','URGENT'],
+              items:const ['Normal','Lansia','Tinggi','URGENT'],
               onChanged:(v)=>setSt(()=>vPrio=v!)),
           LabeledField(label:'Estimasi Pukul', controller:cEst),
           InfoBanner(text:'💡 Nomor antrian dapat langsung dicetak ke printer termal loket.',
@@ -315,20 +315,24 @@ class AntrianScreen extends StatelessWidget {
           CCButton(label:'Batal',outline:true,color:AppColors.sage,
               textColor:AppColors.sage,onPressed:()=>Navigator.pop(ctx)),
           CCButton(label:'🖨  Daftarkan & Cetak',color:AppColors.antrian,
-              onPressed:(){
+              onPressed:() async {
                 if(cNama.text.trim().isEmpty||cKepl.text.trim().isEmpty){
                   ScaffoldMessenger.of(ctx).showSnackBar(
                       SnackBar(content:Text('Nama dan keperluan wajib diisi')));
                   return;
                 }
                 final no = state.nextAntrianNo(vKode);
-                state.addAntrian(AntrianItem(
+                
+                // PENAMBAHAN ID GENERATE & AWAIT
+                await state.addAntrian(AntrianItem(
+                    id: 'A-${DateTime.now().millisecondsSinceEpoch}',
                     no:no, nama:cNama.text.trim(),
                     umur:int.tryParse(cUmur.text.trim())??0,
                     keperluan:cKepl.text.trim(),
                     tglDaftar:'${DateTime.now().hour.toString().padLeft(2,'0')}:${DateTime.now().minute.toString().padLeft(2,'0')}',
                     status:'Menunggu', prioritas:vPrio,
                     estimasi:cEst.text.trim().isEmpty?'-':cEst.text.trim()), vKode);
+                    
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content:Text('Nomor $no berhasil didaftarkan & dicetak'),

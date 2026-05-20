@@ -1,43 +1,54 @@
 // lib/data/app_state.dart
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'database_helper.dart';
 import '../models/models.dart';
-import 'seed_data.dart';
 
 class AppState extends ChangeNotifier {
-  // ── Runtime data — [DB] ganti dengan SQLite query saat backend terhubung ──
-  late List<Pasien>        pasien;
-  late List<StokObat>      stok;
-  late List<HasilLab>      lab;
-  late List<JadwalKontrol> jadwal;
-  late List<Peringatan>    peringatan;
-  late List<KontenEdukasi> edukasi;
-  late Map<String, List<AntrianItem>> antrian;
+  // 1. Data Utama (List)
+  List<Pasien> pasien = [];
+  List<StokObat> stok = []; 
+  List<JadwalKontrol> jadwal = [];
+  List<Peringatan> peringatan = [];
+  List<HasilLab> lab = [];
+  List<KontenEdukasi> edukasi = [];
+  Map<String, List<AntrianItem>> antrian = {};
 
-  String poliAktif       = 'TBC';
-  String filterPasien    = 'Semua Status';
-  String filterPeringatan= 'Semua';
-  String filterEdukasi   = 'Semua';
-  int    pasienCounter   = 8;
+  // 2. State Helper
+  String filterPasien = 'Semua Status';
+  String filterPeringatan = 'Semua';
+  String filterEdukasi = 'Semua';
+  String poliAktif = 'UMUM';
+  int pasienCounter = 0;
 
-  AppState() {
-    _loadSeedData();
-  }
+  // ── [DB] Fungsi Inisialisasi ──────────────────────────────────────────────
+  Future<void> loadSemuaData() async {
+    final db = await DatabaseHelper.database;
+    
+    // Load tabel pasien
+    final pasienMaps = await db.query('pasien');
+    pasien = pasienMaps.map((e) => Pasien.fromMap(e)).toList();
 
-  void _loadSeedData() {
-    // [DB] Saat SQLite tersedia, ganti ini dengan:
-    //   pasien    = await db.loadPasien();
-    //   stok      = await db.loadStok();
-    //   dll.
-    pasien     = List<Pasien>.from(seedPasien);
-    stok       = List<StokObat>.from(seedStok);
-    lab        = List<HasilLab>.from(seedLab);
-    jadwal     = List<JadwalKontrol>.from(seedJadwal);
-    peringatan = List<Peringatan>.from(seedPeringatan);
-    edukasi    = List<KontenEdukasi>.from(seedEdukasi);
-    antrian    = {
-      for (var e in seedAntrian.entries)
-        e.key: List<AntrianItem>.from(e.value)
-    };
+    /* Catatan buat Frontend: 
+      Kalau lu udah bikin fungsi `fromMap` di file models.dart untuk tabel-tabel 
+      di bawah ini, lu bisa buka (uncomment) blok kode ini biar datanya langsung ke-load.
+      
+      final stokMaps = await db.query('stok_obat');
+      stok = stokMaps.map((e) => StokObat.fromMap(e)).toList();
+
+      final jadwalMaps = await db.query('jadwal_kontrol');
+      jadwal = jadwalMaps.map((e) => JadwalKontrol.fromMap(e)).toList();
+
+      final labMaps = await db.query('hasil_lab');
+      lab = labMaps.map((e) => HasilLab.fromMap(e)).toList();
+      
+      final peringatanMaps = await db.query('peringatan');
+      peringatan = peringatanMaps.map((e) => Peringatan.fromMap(e)).toList();
+
+      final edukasiMaps = await db.query('edukasi');
+      edukasi = edukasiMaps.map((e) => KontenEdukasi.fromMap(e)).toList();
+    */
+    
+    notifyListeners();
   }
 
   // ── Pasien ────────────────────────────────────────────────────────────────
@@ -48,22 +59,25 @@ class AppState extends ChangeNotifier {
     }).toList();
   }
 
-  void addPasien(Pasien p) {
+  Future<void> addPasien(Pasien p) async {
+    final db = await DatabaseHelper.database;
+    await db.insert('pasien', p.toMap());
     pasien.add(p);
-    // [DB] INSERT INTO pasien …
     notifyListeners();
   }
 
-  void updatePasien(Pasien p) {
+  Future<void> updatePasien(Pasien p) async {
+    final db = await DatabaseHelper.database;
+    await db.update('pasien', p.toMap(), where: 'id = ?', whereArgs: [p.id]);
     final idx = pasien.indexWhere((x) => x.id == p.id);
     if (idx >= 0) pasien[idx] = p;
-    // [DB] UPDATE pasien SET … WHERE id=p.id
     notifyListeners();
   }
 
-  void deletePasien(String id) {
+  Future<void> deletePasien(String id) async {
+    final db = await DatabaseHelper.database;
+    await db.delete('pasien', where: 'id = ?', whereArgs: [id]);
     pasien.removeWhere((px) => px.id == id);
-    // [DB] DELETE FROM pasien WHERE id=id
     notifyListeners();
   }
 
@@ -73,26 +87,35 @@ class AppState extends ChangeNotifier {
   }
 
   // ── Stok ──────────────────────────────────────────────────────────────────
-  void updateStok(String nama, int jumlah, String aksi) {
+  Future<void> updateStok(String nama, int jumlah, String aksi) async {
     final ob = stok.firstWhere((o) => o.nama == nama);
-    if      (aksi == 'Set Nilai Baru') ob.stok  = jumlah;
-    else if (aksi == 'Tambah Stok')    ob.stok += jumlah;
-    else if (aksi == 'Kurangi Stok')   ob.stok  = (ob.stok - jumlah).clamp(0, ob.maks);
-    // [DB] UPDATE stok SET stok=… WHERE nama=…
+    if (aksi == 'Set Nilai Baru') {
+      ob.stok = jumlah;
+    } else if (aksi == 'Tambah Stok') {
+      ob.stok += jumlah;
+    } else if (aksi == 'Kurangi Stok') {
+      ob.stok = (ob.stok - jumlah).clamp(0, ob.maks);
+    }
+    
+    final db = await DatabaseHelper.database;
+    // Asumsi di models.dart, StokObat udah ada fungsi toMap()
+    await db.update('stok_obat', ob.toMap(), where: 'id = ?', whereArgs: [ob.id]);
     notifyListeners();
   }
 
   // ── Jadwal ────────────────────────────────────────────────────────────────
-  void addJadwal(JadwalKontrol j) {
+  Future<void> addJadwal(JadwalKontrol j) async {
+    final db = await DatabaseHelper.database;
+    await db.insert('jadwal_kontrol', j.toMap());
     jadwal.add(j);
-    // [DB] INSERT INTO jadwal …
     notifyListeners();
   }
 
-  void updateStatusJadwal(JadwalKontrol j, String status, String catatan) {
-    j.status  = status;
+  Future<void> updateStatusJadwal(JadwalKontrol j, String status, String catatan) async {
+    j.status = status;
     j.catatan = catatan;
-    // [DB] UPDATE jadwal SET status=… WHERE …
+    final db = await DatabaseHelper.database;
+    await db.update('jadwal_kontrol', j.toMap(), where: 'id = ?', whereArgs: [j.id]);
     notifyListeners();
   }
 
@@ -102,16 +125,18 @@ class AppState extends ChangeNotifier {
     return peringatan.where((pw) => pw.level == filterPeringatan).toList();
   }
 
-  void selesaikanPeringatan(Peringatan pw) {
+  Future<void> selesaikanPeringatan(Peringatan pw) async {
+    final db = await DatabaseHelper.database;
+    await db.delete('peringatan', where: 'id = ?', whereArgs: [pw.id]);
     peringatan.removeWhere((p) => p.idPasien == pw.idPasien && p.isu == pw.isu);
-    // [DB] UPDATE peringatan SET status='selesai' WHERE …
     notifyListeners();
   }
 
   // ── Lab ───────────────────────────────────────────────────────────────────
-  void addLab(HasilLab hl) {
+  Future<void> addLab(HasilLab hl) async {
+    final db = await DatabaseHelper.database;
+    await db.insert('hasil_lab', hl.toMap());
     lab.add(hl);
-    // [DB] INSERT INTO lab …
     notifyListeners();
   }
 
@@ -121,22 +146,27 @@ class AppState extends ChangeNotifier {
     return edukasi.where((e) => e.kategori == filterEdukasi).toList();
   }
 
-  void addEdukasi(KontenEdukasi e) {
+  Future<void> addEdukasi(KontenEdukasi e) async {
+    final db = await DatabaseHelper.database;
+    await db.insert('edukasi', e.toMap());
     edukasi.add(e);
     notifyListeners();
   }
 
-  void updateEdukasi(KontenEdukasi e, String judul, String kat, String dur, String isi) {
-    e.judul    = judul;
+  Future<void> updateEdukasi(KontenEdukasi e, String judul, String kat, String dur, String isi) async {
+    e.judul = judul;
     e.kategori = kat;
-    e.durasi   = dur;
-    e.isi      = isi;
+    e.durasi = dur;
+    e.isi = isi;
+    final db = await DatabaseHelper.database;
+    await db.update('edukasi', e.toMap(), where: 'id = ?', whereArgs: [e.id]);
     notifyListeners();
   }
 
-  void incrementViews(KontenEdukasi e) {
+  Future<void> incrementViews(KontenEdukasi e) async {
     e.views++;
-    // [DB] UPDATE edukasi SET views=views+1 WHERE …
+    final db = await DatabaseHelper.database;
+    await db.update('edukasi', e.toMap(), where: 'id = ?', whereArgs: [e.id]);
     notifyListeners();
   }
 
@@ -148,40 +178,63 @@ class AppState extends ChangeNotifier {
     return list.isEmpty ? null : list.first;
   }
 
-  void panggilBerikutnya() {
-    final data = antrian[poliAktif]!;
+  Future<void> panggilBerikutnya() async {
+    final data = antrian[poliAktif] ?? [];
+    final db = await DatabaseHelper.database;
+
     for (var a in data) {
       if (a.status == 'Dipanggil' || a.status == 'URGENT') {
-        a.status = 'Selesai'; break;
+        a.status = 'Selesai'; 
+        await db.update('antrian', {'status': 'Selesai'}, where: 'id = ?', whereArgs: [a.id]);
+        break;
       }
     }
-    final order = {'URGENT':0,'Tinggi':1,'Lansia':2,'Normal':3};
+    
+    final order = {'URGENT':0, 'Tinggi':1, 'Lansia':2, 'Normal':3};
     final waiting = data.where((a) => a.status == 'Menunggu').toList()
-      ..sort((a,b) => (order[a.prioritas]??9).compareTo(order[b.prioritas]??9));
-    if (waiting.isNotEmpty) waiting.first.status = 'Dipanggil';
-    // [DB] UPDATE antrian SET status=… WHERE …
+      ..sort((a,b) => (order[a.prioritas] ?? 9).compareTo(order[b.prioritas] ?? 9));
+      
+    if (waiting.isNotEmpty) {
+      waiting.first.status = 'Dipanggil';
+      await db.update('antrian', {'status': 'Dipanggil'}, where: 'id = ?', whereArgs: [waiting.first.id]);
+    }
     notifyListeners();
   }
 
-  void selesaikanAntrian() {
+  Future<void> selesaikanAntrian() async {
     final a = nowServed;
-    if (a != null) { a.status = 'Selesai'; notifyListeners(); }
+    if (a != null) { 
+      a.status = 'Selesai'; 
+      final db = await DatabaseHelper.database;
+      await db.update('antrian', {'status': 'Selesai'}, where: 'id = ?', whereArgs: [a.id]);
+      notifyListeners(); 
+    }
   }
 
-  void tundaAntrian() {
+  Future<void> tundaAntrian() async {
     final a = nowServed;
-    if (a != null) { a.status = 'Menunggu'; a.prioritas = 'Normal'; notifyListeners(); }
+    if (a != null) { 
+      a.status = 'Menunggu'; 
+      a.prioritas = 'Normal'; 
+      final db = await DatabaseHelper.database;
+      await db.update('antrian', {'status': 'Menunggu', 'prioritas': 'Normal'}, where: 'id = ?', whereArgs: [a.id]);
+      notifyListeners(); 
+    }
   }
 
-  void resetAntrian(String kode) {
+  Future<void> resetAntrian(String kode) async {
     antrian[kode] = [];
+    final db = await DatabaseHelper.database;
+    // Mengosongkan data antrian khusus poli terkait di database
+    await db.delete('antrian', where: 'poli = ?', whereArgs: [kode]);
     notifyListeners();
   }
 
-  void addAntrian(AntrianItem item, String kode) {
+  Future<void> addAntrian(AntrianItem item, String kode) async {
     antrian.putIfAbsent(kode, () => []);
     antrian[kode]!.add(item);
-    // [DB] INSERT INTO antrian …
+    final db = await DatabaseHelper.database;
+    await db.insert('antrian', item.toMap());
     notifyListeners();
   }
 
@@ -192,13 +245,13 @@ class AppState extends ChangeNotifier {
   }
 
   // ── Computed stats ────────────────────────────────────────────────────────
-  int get totalAktif     => pasien.where((px) => px.status=='Dalam Terapi').length;
-  int get totalSelesai   => pasien.where((px) => px.status=='Selesai').length;
+  int get totalAktif => pasien.where((px) => px.status=='Dalam Terapi').length;
+  int get totalSelesai => pasien.where((px) => px.status=='Selesai').length;
   int get totalPutusObat => pasien.where((px) => px.status=='Putus Obat').length;
-  int get totalAntrian   => antrian.values.fold(0, (s,v) => s+v.length);
+  int get totalAntrian => antrian.values.fold(0, (s,v) => s + v.length);
 
   double get kepatuhanRataRata {
     if (pasien.isEmpty) return 0;
-    return pasien.map((px) => px.kepatuhan).reduce((a,b)=>a+b) / pasien.length;
+    return pasien.map((px) => px.kepatuhan).reduce((a,b) => a + b) / pasien.length;
   }
 }
